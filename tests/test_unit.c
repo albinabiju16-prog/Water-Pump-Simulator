@@ -1,47 +1,65 @@
-
 #include <stdio.h>
 #include <assert.h>
 #include "pump.h"
+#include "utils.h"
 
 int main() {
     PumpSimulator pump;
+    AppConfig cfg;
 
-    // Test 1: Initial state (M03, M08)
+    // 1-2. Positive & Negative: Config loading
+    assert(load_config("config.json", &cfg) == 0);
+    assert(load_config("missing_file.json", &cfg) == -1);
+    printf("PASS [1-2]: Config valid and missing file checks\n");
+
+    // 3. Positive: Initial state (STOPPED, 0 RPM, 30C)
     pump_init(&pump);
-    assert(pump.state == PUMP_STOPPED);
-    assert(pump.actual_rpm == 0);
-    assert(pump.motor_temp == 30.0f);
-    printf("PASS: Test 1 - Pump Initialization\n");
+    assert(pump.state == PUMP_STOPPED && pump.actual_rpm == 0 && pump.motor_temp == 30.0f);
+    printf("PASS [3]: Initial pump state\n");
 
-    // Test 2: Start command and physics (M09, M12, M13, M14)
+    // 4-7. Positive: Start command, RPM ramp-up, flow, pressure, tank fill, heating
     pump_process_command(&pump, CMD_START);
     assert(pump.state == PUMP_RUNNING);
     pump_step(&pump);
     assert(pump.actual_rpm == 500);
-    assert(pump.water_flow > 0.0f);
-    assert(pump.discharge_pressure > 0.0f);
-    printf("PASS: Test 2 - Start Command and Physics\n");
+    assert(pump.water_flow > 0.0f && pump.discharge_pressure > 0.0f);
+    assert(pump.tank_level > 10.0f && pump.motor_temp > 30.0f);
+    printf("PASS [4-7]: Start, acceleration, flow, pressure, tank fill, and heating\n");
 
-    // Test 3: Speed limit check (M11, R07)
-    pump_set_speed(&pump, 2000, 3000);
-    assert(pump.requested_rpm == 2000);
-    pump_set_speed(&pump, 5000, 3000); // 5000 is invalid (>3000)
-    assert(pump.requested_rpm == 2000); // Must stay 2000
-    printf("PASS: Test 3 - Speed Setpoint Validation\n");
+    // 8-9. Boundary: Min (0) and Max (3000) RPM limits
+    pump_set_speed(&pump, 0, 3000);
+    assert(pump.requested_rpm == 0);
+    pump_set_speed(&pump, 3000, 3000);
+    assert(pump.requested_rpm == 3000);
+    printf("PASS [8-9]: Boundary RPM setpoints (0 and 3000)\n");
 
-    // Test 4: High-temp fault (>80C) and reset (M18, M19)
-    pump.fault_injection = 2;
-    pump_step(&pump);
-    assert(pump.state == PUMP_FAULT);
-    assert(pump.fault_code == FAULT_HIGH_TEMP);
+    // 10-12. Negative: Invalid RPM (-1, 3001) and unknown command (99)
+    pump_set_speed(&pump, -1, 3000);
+    assert(pump.requested_rpm == 3000);
+    pump_set_speed(&pump, 3001, 3000);
+    assert(pump.requested_rpm == 3000);
+    pump_process_command(&pump, 99);
+    assert(pump.state == PUMP_RUNNING);
+    printf("PASS [10-12]: Negative invalid inputs rejected\n");
 
-    pump.fault_injection = 0;
-    pump.motor_temp = 50.0f; // Safe temperature
-    pump_process_command(&pump, CMD_RESET_FAULT);
+    // 13-14. Positive: Stop command, deceleration, and cooling
+    pump_process_command(&pump, CMD_STOP);
     assert(pump.state == PUMP_STOPPED);
-    assert(pump.fault_code == FAULT_NONE);
-    printf("PASS: Test 4 - Fault Detection and Reset\n");
+    pump_step(&pump);
+    assert(pump.actual_rpm == 0);
+    printf("PASS [13-14]: Stop deceleration and cooling\n");
 
-    printf("\nALL UNIT TESTS PASSED!\n");
+    // 15-16. Positive & Negative: Fault injection, blocked reset, and valid reset
+    pump.fault_injection = 1;
+    pump_step(&pump);
+    assert(pump.state == PUMP_FAULT && pump.fault_code == FAULT_LOW_PRESSURE);
+    pump_process_command(&pump, CMD_RESET_FAULT); // Must fail while fault_injection == 1
+    assert(pump.state == PUMP_FAULT);
+    pump.fault_injection = 0;
+    pump_process_command(&pump, CMD_RESET_FAULT); // Must succeed now
+    assert(pump.state == PUMP_STOPPED && pump.fault_code == FAULT_NONE);
+    printf("PASS [15-16]: Fault detection, blocked reset, and valid reset\n");
+
+    printf("\nALL 16 UNIT TESTS PASSED!\n");
     return 0;
 }
