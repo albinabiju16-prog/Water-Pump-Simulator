@@ -1,0 +1,21 @@
+
+pump_sim
+test_unit
+test_modbus
+*.log
+*.gcno
+*.gcda
+*.gcov
+# Compiled object files
+*.o
+*.a
+*.so
+
+# Build directories
+build/
+
+# Debug files
+*.gdb
+
+# Editor files
+.vscode/
