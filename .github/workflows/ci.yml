@@ -1,0 +1,53 @@
+name: WaterPump CI Pipeline
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  build-test-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: sudo apt-get update && sudo apt-get install -y gcc libmodbus-dev cppcheck
+
+      - name: Build Simulator and Tests
+        run: |
+          gcc -Iinclude src/main.c src/utils.c src/pump.c src/modbus_server.c -o pump_sim -lmodbus
+          gcc --coverage -Iinclude tests/test_unit.c src/pump.c src/utils.c -o test_unit
+          gcc -Iinclude tests/test_modbus.c -o test_modbus -lmodbus
+
+      - name: Run 32 Automated Unit Tests & Coverage
+        run: |
+          mkdir -p reports
+          ./test_unit | tee reports/unit_test_results.txt
+          gcov test_unit-pump test_unit-utils | tee reports/coverage_report.txt
+
+      - name: Run Live Modbus Integration Test
+        run: |
+          ./pump_sim &
+          SIM_PID=$!
+          sleep 1
+          ./test_modbus | tee reports/modbus_test_results.txt
+          kill $SIM_PID
+
+      - name: Static Analysis (cppcheck)
+        run: cppcheck --enable=warning,style --error-exitcode=1 --suppress=missingIncludeSystem -Iinclude src/ tests/ 2>&1 | tee reports/static_analysis.txt
+
+      - name: Security & Secret Scan
+        run: |
+          if grep -rnE "(PASSWORD|SECRET|API_KEY|PRIVATE_KEY)\s*=" src/ include/ config.json; then
+            echo "Exposed secret found!" && exit 1
+          fi
+          echo "Security scan passed: 0 exposed secrets." | tee reports/security_scan.txt
+
+      - name: Retain Build & Audit Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-audit-reports
+          path: reports/

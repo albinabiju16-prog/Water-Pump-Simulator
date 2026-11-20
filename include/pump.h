@@ -26,7 +26,7 @@ typedef enum {
 
 // Structure holding all live machine values
 typedef struct {
-    PumpState state;
+    PumpState state;            //current FSM state (stopped,running,fault)
     int actual_rpm;             // 0 to 3000 RPM (M07)
     int requested_rpm;          // 0 to 3000 RPM (M11)
     float tank_level;           // 0 to 100 % (M04)
