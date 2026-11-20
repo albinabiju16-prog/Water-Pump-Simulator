@@ -31,7 +31,7 @@ void log_event(const char *level, const char *message) {
 
     // 2. Save to pump.log file (Requirement M20 & R04)
     FILE *log_file = fopen("pump.log", "a");
-    if (log_file) {
+    if (log_file) {  //checks that linux successfully opened the file
         fprintf(log_file, "[%s] [%s] %s\n", time_str, level, message);
         fclose(log_file);
     }
