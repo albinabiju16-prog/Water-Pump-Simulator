@@ -22,7 +22,7 @@ jobs:
           gcc --coverage -Iinclude tests/test_unit.c src/pump.c src/utils.c -o test_unit
           gcc -Iinclude tests/test_modbus.c -o test_modbus -lmodbus
 
-      - name: Run 32 Automated Unit Tests & Coverage
+      - name: Run 35 Automated Unit Tests & Coverage
         run: |
           mkdir -p reports
           ./test_unit | tee reports/unit_test_results.txt

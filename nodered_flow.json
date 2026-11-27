@@ -1,32 +1,524 @@
 [
-    {"id":"tab1","type":"tab","label":"Water Pump Station","disabled":false},
-    {"id":"ui_tab1","type":"ui_tab","name":"Water Pump Station","icon":"dashboard","order":1},
-    {"id":"grp_status","type":"ui_group","name":"System Status","tab":"ui_tab1","order":1,"disp":true,"width":"6"},
-    {"id":"grp_sensors","type":"ui_group","name":"Live Sensors","tab":"ui_tab1","order":2,"disp":true,"width":"6"},
-    {"id":"grp_controls","type":"ui_group","name":"Operator Controls","tab":"ui_tab1","order":3,"disp":true,"width":"6"},
-    {"id":"mb_client","type":"modbus-client","name":"Pump PLC","clienttype":"tcp","bufferCommands":true,"stateLogEnabled":true,"queueLogEnabled":false,"failureLogEnabled":true,"tcpHost":"127.0.0.1","tcpPort":"5020","tcpType":"DEFAULT","serialPort":"/dev/ttyUSB","serialType":"RTU-BUFFERD","serialBaudrate":"9600","serialDatabits":"8","serialStopbits":"1","serialParity":"none","serialConnectionDelay":"100","serialAsciiResponseStartDelimiter":"0x3A","unit_id":"1","commandDelay":"1","clientTimeout":"1000","reconnectOnTimeout":true,"reconnectTimeout":"2000","parallelUnitIdsAllowed":true},
-    {"id":"read_ir","type":"modbus-read","z":"tab1","name":"Read Sensors (IR 0-5)","topic":"","showStatusActivities":true,"logIOActivities":false,"showErrors":true,"showWarnings":true,"unitid":"1","dataType":"InputRegister","adr":"0","quantity":"6","rate":"1","rateUnit":"s","delayOnStart":false,"startDelayTime":"","server":"mb_client","useIOFile":false,"ioFile":"","useIOForPayload":false,"emptyMsgOnFail":false,"x":140,"y":120,"wires":[["dbg_ir","fn_ir"],[]]},
-    {"id":"dbg_ir","type":"debug","z":"tab1","name":"Live Registers","active":true,"tosidebar":true,"console":false,"tostatus":false,"complete":"payload","targetType":"msg","x":380,"y":60,"wires":[]},
-    {"id":"fn_ir","type":"function","z":"tab1","name":"Scale Values","func":"let d = msg.payload;\nif (!Array.isArray(d) || d.length < 6) return null;\nlet faultText = 'HEALTHY (No Fault)';\nif (d[5] === 1) faultText = 'ALARM: LOW PRESSURE FAULT!';\nif (d[5] === 2) faultText = 'ALARM: HIGH TEMP FAULT (>80C)!';\nlet toastMsg = (d[5] !== 0) ? {payload: faultText} : null;\nreturn [\n  {payload: (d[0] / 10).toFixed(1)},\n  {payload: (d[1] / 10).toFixed(1) + ' m³/h'},\n  {payload: (d[2] / 100).toFixed(2) + ' bar'},\n  {payload: d[3] + ' RPM'},\n  {payload: (d[4] / 10).toFixed(1) + ' °C'},\n  {payload: faultText},\n  toastMsg\n];","outputs":7,"noerr":0,"x":370,"y":140,"wires":[["ui_tank"],["ui_flow"],["ui_press"],["ui_rpm"],["ui_temp"],["ui_fault"],["ui_toast"]]},
-    {"id":"read_di","type":"modbus-read","z":"tab1","name":"Read Status (DI 0-1)","topic":"","showStatusActivities":true,"logIOActivities":false,"showErrors":true,"showWarnings":true,"unitid":"1","dataType":"Input","adr":"0","quantity":"2","rate":"1","rateUnit":"s","delayOnStart":false,"startDelayTime":"","server":"mb_client","useIOFile":false,"ioFile":"","useIOForPayload":false,"emptyMsgOnFail":false,"x":140,"y":280,"wires":[["fn_di"],[]]},
-    {"id":"fn_di","type":"function","z":"tab1","name":"Decode State","func":"let d = msg.payload;\nif (!Array.isArray(d) || d.length < 2) return null;\nlet state = 'STOPPED';\nif (d[1]) state = 'FAULT';\nelse if (d[0]) state = 'RUNNING';\nreturn {payload: state};","outputs":1,"noerr":0,"x":370,"y":280,"wires":[["ui_state"]]},
-    {"id":"st_watch","type":"status","z":"tab1","name":"Connection Monitor","scope":["read_ir"],"x":130,"y":360,"wires":[["fn_conn"]]},
-    {"id":"fn_conn","type":"function","z":"tab1","name":"Check Link","func":"let txt = (msg.status && msg.status.text) ? msg.status.text : '';\nlet ok = txt.includes('active') || txt.includes('connected');\nreturn {payload: ok ? 'CONNECTED (Port 5020)' : 'DISCONNECTED (Simulator Offline)'};","outputs":1,"noerr":0,"x":370,"y":360,"wires":[["ui_conn"]]},
-    {"id":"ui_conn","type":"ui_text","z":"tab1","group":"grp_status","order":1,"width":0,"height":0,"name":"Modbus Link","label":"Connection:","format":"{{msg.payload}}","layout":"row-spread","x":610,"y":360,"wires":[]},
-    {"id":"ui_state","type":"ui_text","z":"tab1","group":"grp_status","order":2,"width":0,"height":0,"name":"Pump State","label":"Pump Condition:","format":"{{msg.payload}}","layout":"row-spread","x":610,"y":280,"wires":[]},
-    {"id":"ui_fault","type":"ui_text","z":"tab1","group":"grp_status","order":3,"width":0,"height":0,"name":"Fault Alarm","label":"Alarm Status:","format":"{{msg.payload}}","layout":"row-spread","x":610,"y":220,"wires":[]},
-    {"id":"ui_toast","type":"ui_toast","z":"tab1","position":"top right","displayTime":"3","highlight":"red","sendall":true,"outputs":0,"ok":"OK","cancel":"","raw":false,"topic":"PUMP FAULT","name":"Fault Popup","x":610,"y":250,"wires":[]},
-    {"id":"ui_tank","type":"ui_gauge","z":"tab1","name":"Tank Level","group":"grp_sensors","order":1,"width":0,"height":0,"gtype":"gage","title":"Tank Level","label":"%","format":"{{value}}","min":0,"max":100,"colors":["#00b500","#e6e600","#ca3838"],"seg1":"","seg2":"","x":610,"y":60,"wires":[]},
-    {"id":"ui_flow","type":"ui_text","z":"tab1","group":"grp_sensors","order":2,"width":0,"height":0,"name":"Water Flow","label":"Water Flow:","format":"{{msg.payload}}","layout":"row-spread","x":610,"y":100,"wires":[]},
-    {"id":"ui_press","type":"ui_text","z":"tab1","group":"grp_sensors","order":3,"width":0,"height":0,"name":"Pressure","label":"Discharge Pressure:","format":"{{msg.payload}}","layout":"row-spread","x":610,"y":130,"wires":[]},
-    {"id":"ui_rpm","type":"ui_text","z":"tab1","group":"grp_sensors","order":4,"width":0,"height":0,"name":"Motor RPM","label":"Motor Speed:","format":"{{msg.payload}}","layout":"row-spread","x":610,"y":160,"wires":[]},
-    {"id":"ui_temp","type":"ui_text","z":"tab1","group":"grp_sensors","order":5,"width":0,"height":0,"name":"Motor Temp","label":"Motor Temperature:","format":"{{msg.payload}}","layout":"row-spread","x":610,"y":190,"wires":[]},
-    {"id":"btn_start","type":"ui_button","z":"tab1","name":"START","group":"grp_controls","order":1,"width":2,"height":1,"passthru":false,"label":"START","color":"","bgcolor":"green","payload":"1","payloadType":"num","topic":"","x":120,"y":440,"wires":[["wr_cmd"]]},
-    {"id":"btn_stop","type":"ui_button","z":"tab1","name":"STOP","group":"grp_controls","order":2,"width":2,"height":1,"passthru":false,"label":"STOP","color":"","bgcolor":"orange","payload":"2","payloadType":"num","topic":"","x":120,"y":480,"wires":[["wr_cmd"]]},
-    {"id":"btn_reset","type":"ui_button","z":"tab1","name":"RESET FAULT","group":"grp_controls","order":3,"width":2,"height":1,"passthru":false,"label":"RESET FAULT","color":"","bgcolor":"red","payload":"3","payloadType":"num","topic":"","x":130,"y":520,"wires":[["wr_cmd"]]},
-    {"id":"wr_cmd","type":"modbus-write","z":"tab1","name":"Write Command (HR 0)","showStatusActivities":false,"showErrors":true,"showWarnings":true,"unitid":"1","dataType":"HoldingRegister","adr":"0","quantity":"1","server":"mb_client","emptyMsgOnFail":false,"keepMsgProperties":false,"x":400,"y":480,"wires":[[],[]]},
-    {"id":"num_rpm","type":"ui_numeric","z":"tab1","name":"Speed Setpoint","label":"Target Speed (RPM)","tooltip":"","group":"grp_controls","order":4,"width":0,"height":0,"wrap":false,"passthru":true,"topic":"","format":"{{value}}","min":0,"max":3000,"step":100,"x":140,"y":580,"wires":[["wr_rpm"]]},
-    {"id":"wr_rpm","type":"modbus-write","z":"tab1","name":"Write Speed (HR 1)","showStatusActivities":false,"showErrors":true,"showWarnings":true,"unitid":"1","dataType":"HoldingRegister","adr":"1","quantity":"1","server":"mb_client","emptyMsgOnFail":false,"keepMsgProperties":false,"x":400,"y":580,"wires":[[],[]]},
-    {"id":"drp_fault","type":"ui_dropdown","z":"tab1","name":"Fault Injection","label":"Inject Fault","tooltip":"","place":"Select Fault","group":"grp_controls","order":5,"width":0,"height":0,"passthru":true,"options":[{"label":"0 - None (Clear)","value":0,"type":"num"},{"label":"1 - Low Pressure Fault","value":1,"type":"num"},{"label":"2 - High Temperature Fault","value":2,"type":"num"}],"payload":"","topic":"","x":130,"y":640,"wires":[["wr_fault"]]},
-    {"id":"wr_fault","type":"modbus-write","z":"tab1","name":"Write Fault (HR 2)","showStatusActivities":false,"showErrors":true,"showWarnings":true,"unitid":"1","dataType":"HoldingRegister","adr":"2","quantity":"1","server":"mb_client","emptyMsgOnFail":false,"keepMsgProperties":false,"x":400,"y":640,"wires":[[],[]]}
+    {
+        "id": "tab1",
+        "type": "tab",
+        "label": "Water Pump Station",
+        "disabled": false
+    },
+    {
+        "id": "ui_tab1",
+        "type": "ui_tab",
+        "name": "Water Pump Station",
+        "icon": "dashboard",
+        "order": 1
+    },
+    {
+        "id": "grp_pid",
+        "type": "ui_group",
+        "name": "P&ID Process Telemetry & Diagnostics",
+        "tab": "ui_tab1",
+        "order": 1,
+        "disp": true,
+        "width": "12"
+    },
+    {
+        "id": "grp_controls",
+        "type": "ui_group",
+        "name": "Operator Control Desk",
+        "tab": "ui_tab1",
+        "order": 2,
+        "disp": true,
+        "width": "6"
+    },
+    {
+        "id": "f82a2aae017418db",
+        "type": "ui_base",
+        "theme": {
+            "name": "theme-dark",
+            "lightTheme": {
+                "default": "#0094CE",
+                "baseColor": "#0094CE",
+                "baseFont": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif",
+                "edited": false
+            },
+            "themeState": {
+                "base-color": {
+                    "default": "#0094CE",
+                    "value": "#0094CE",
+                    "edited": false
+                },
+                "page-titlebar-backgroundColor": {
+                    "value": "#0094CE",
+                    "edited": false
+                },
+                "page-backgroundColor": {
+                    "value": "#0B1220",
+                    "edited": true
+                },
+                "page-sidebar-backgroundColor": {
+                    "value": "#111827",
+                    "edited": true
+                },
+                "group-textColor": {
+                    "value": "#1bbfff",
+                    "edited": false
+                },
+                "group-borderColor": {
+                    "value": "#1f2937",
+                    "edited": true
+                },
+                "group-backgroundColor": {
+                    "value": "#111827",
+                    "edited": true
+                },
+                "widget-textColor": {
+                    "value": "#f3f4f6",
+                    "edited": true
+                },
+                "widget-backgroundColor": {
+                    "value": "#1e293b",
+                    "edited": true
+                },
+                "widget-borderColor": {
+                    "value": "#374151",
+                    "edited": true
+                },
+                "base-font": {
+                    "value": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif"
+                }
+            },
+            "angularTheme": {
+                "primary": "indigo",
+                "accents": "blue",
+                "warn": "red",
+                "background": "grey",
+                "palette": "dark"
+            }
+        },
+        "site": {
+            "name": "Node-RED Dashboard",
+            "hideToolbar": "false",
+            "allowSwipe": "false",
+            "lockMenu": "false",
+            "allowTempTheme": "true",
+            "dateFormat": "DD/MM/YYYY",
+            "sizes": {
+                "sx": 48,
+                "sy": 48,
+                "gx": 6,
+                "gy": 6,
+                "cx": 6,
+                "cy": 6,
+                "px": 0,
+                "py": 0
+            }
+        }
+    },
+    {
+        "id": "mb_client",
+        "type": "modbus-client",
+        "name": "Pump PLC",
+        "clienttype": "tcp",
+        "bufferCommands": true,
+        "stateLogEnabled": true,
+        "queueLogEnabled": false,
+        "failureLogEnabled": true,
+        "tcpHost": "127.0.0.1",
+        "tcpPort": "5020",
+        "tcpType": "DEFAULT",
+        "serialPort": "/dev/ttyUSB",
+        "serialType": "RTU-BUFFERD",
+        "serialBaudrate": "9600",
+        "serialDatabits": "8",
+        "serialStopbits": "1",
+        "serialParity": "none",
+        "serialConnectionDelay": "100",
+        "serialAsciiResponseStartDelimiter": "0x3A",
+        "unit_id": "1",
+        "commandDelay": "1",
+        "clientTimeout": "1000",
+        "reconnectOnTimeout": true,
+        "reconnectTimeout": "2000",
+        "parallelUnitIdsAllowed": true
+    },
+    {
+        "id": "read_ir",
+        "type": "modbus-read",
+        "z": "tab1",
+        "name": "Read Sensors (IR 0-5)",
+        "topic": "",
+        "showStatusActivities": true,
+        "logIOActivities": false,
+        "showErrors": true,
+        "showWarnings": true,
+        "unitid": "1",
+        "dataType": "InputRegister",
+        "adr": "0",
+        "quantity": "6",
+        "rate": "1",
+        "rateUnit": "s",
+        "delayOnStart": false,
+        "startDelayTime": "",
+        "server": "mb_client",
+        "useIOFile": false,
+        "ioFile": "",
+        "useIOForPayload": false,
+        "emptyMsgOnFail": false,
+        "x": 140,
+        "y": 120,
+        "wires": [
+            [
+                "dbg_ir",
+                "fn_scada_bundle"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "dbg_ir",
+        "type": "debug",
+        "z": "tab1",
+        "name": "Live Registers",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 380,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "read_di",
+        "type": "modbus-read",
+        "z": "tab1",
+        "name": "Read Status (DI 0-1)",
+        "topic": "",
+        "showStatusActivities": true,
+        "logIOActivities": false,
+        "showErrors": true,
+        "showWarnings": true,
+        "unitid": "1",
+        "dataType": "Input",
+        "adr": "0",
+        "quantity": "2",
+        "rate": "1",
+        "rateUnit": "s",
+        "delayOnStart": false,
+        "startDelayTime": "",
+        "server": "mb_client",
+        "useIOFile": false,
+        "ioFile": "",
+        "useIOForPayload": false,
+        "emptyMsgOnFail": false,
+        "x": 140,
+        "y": 260,
+        "wires": [
+            [
+                "fn_di"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "fn_di",
+        "type": "function",
+        "z": "tab1",
+        "name": "Decode State",
+        "func": "let d = msg.payload;\nif (!Array.isArray(d) || d.length < 2) return null;\nlet state = 'STOPPED';\nif (d[1]) state = 'FAULT';\nelse if (d[0]) state = 'RUNNING';\nflow.set('pumpState', state);\nreturn {payload: state};",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 370,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "fn_scada_bundle",
+        "type": "function",
+        "z": "tab1",
+        "name": "Build SCADA Telemetry",
+        "func": "let d = msg.payload;\nif (!Array.isArray(d) || d.length < 6) return null;\n\nlet state = flow.get('pumpState') || 'STOPPED';\nlet tank = parseFloat((d[0] / 10).toFixed(1));\nlet flowRate = parseFloat((d[1] / 10).toFixed(1));\nlet press = parseFloat((d[2] / 100).toFixed(2));\nlet rpm = d[3];\nlet temp = parseFloat((d[4] / 10).toFixed(1));\nlet fault = d[5];\n\nlet faultMsg = 'HEALTHY (No Fault)';\nlet interlockText = 'INTERLOCKS OK';\nlet interlockTrip = false;\n\nif (fault === 1) {\n    faultMsg = 'ALARM: LOW PRESSURE FAULT!';\n    interlockText = 'INTERLOCK TRIPPED: LOW PRESS';\n    interlockTrip = true;\n} else if (fault === 2 || temp > 80.0) {\n    faultMsg = 'ALARM: MOTOR OVERHEAT (>80\u00b0C)!';\n    interlockText = 'INTERLOCK TRIPPED: OVERHEAT';\n    interlockTrip = true;\n}\n\nlet scada = {\n    tank_level: tank,\n    water_flow: flowRate,\n    pressure: press,\n    rpm: rpm,\n    temp: temp,\n    fault_code: fault,\n    fault_text: faultMsg,\n    state: state,\n    interlock_text: interlockText,\n    interlock_tripped: interlockTrip\n};\n\nlet toast = interlockTrip ? {payload: faultMsg} : null;\nreturn [{payload: scada}, toast];",
+        "outputs": 2,
+        "noerr": 0,
+        "x": 390,
+        "y": 140,
+        "wires": [
+            [
+                "ui_scada_pid"
+            ],
+            [
+                "ui_toast"
+            ]
+        ]
+    },
+    {
+        "id": "ui_scada_pid",
+        "type": "ui_template",
+        "z": "tab1",
+        "group": "grp_pid",
+        "name": "P&ID Process Graphic",
+        "order": 1,
+        "width": "12",
+        "height": "8",
+        "format": "<style>\n  /* ====== 100% VIEWPORT FULL SCREEN RESPONSIVE LAYOUT ====== */\n  html, body, #nr-dashboard {\n    height: 100vh !important;\n    max-height: 100vh !important;\n    width: 100vw !important;\n    max-width: 100vw !important;\n    margin: 0 !important;\n    padding: 0 !important;\n    overflow: hidden !important;\n    box-sizing: border-box !important;\n    background-color: #0B1220 !important;\n  }\n\n  body > md-content {\n    height: 100vh !important;\n    max-height: 100vh !important;\n    overflow: hidden !important;\n    display: flex !important;\n    flex-direction: column !important;\n    background-color: #0B1220 !important;\n  }\n\n  #toolbar {\n    min-height: 56px !important;\n    max-height: 56px !important;\n    height: 56px !important;\n    flex: 0 0 56px !important;\n    background-color: #0094ce !important;\n  }\n\n  .md-toolbar-tools {\n    height: 56px !important;\n    max-height: 56px !important;\n  }\n\n  section[layout=\"row\"] {\n    flex: 1 1 auto !important;\n    height: calc(100vh - 56px) !important;\n    max-height: calc(100vh - 56px) !important;\n    overflow: hidden !important;\n    display: flex !important;\n    background-color: #0B1220 !important;\n  }\n\n  section[layout=\"row\"] > md-content {\n    flex: 1 1 auto !important;\n    height: 100% !important;\n    max-height: 100% !important;\n    overflow: hidden !important;\n    display: flex !important;\n    flex-direction: column !important;\n    background-color: #0B1220 !important;\n  }\n\n  /* Masonry flex container spanning full width & height */\n  div[ui-masonry],\n  #Tab_Water_Pump_Station {\n    display: flex !important;\n    flex-direction: row !important;\n    align-items: stretch !important;\n    justify-content: flex-start !important;\n    gap: 16px !important;\n    width: 100% !important;\n    height: 100% !important;\n    max-height: 100% !important;\n    padding: 14px 16px !important;\n    box-sizing: border-box !important;\n    position: static !important;\n    overflow: hidden !important;\n    background-color: #0B1220 !important;\n  }\n\n  /* Cards General */\n  div[ui-masonry] > ui-card-panel {\n    position: relative !important;\n    left: auto !important;\n    top: auto !important;\n    transform: none !important;\n    height: 100% !important;\n    max-height: 100% !important;\n    display: flex !important;\n    flex-direction: column !important;\n    box-sizing: border-box !important;\n    margin: 0 !important;\n    background: transparent !important;\n  }\n\n  /* Card 1: P&ID Telemetry (takes all remaining width) */\n  ui-card-panel[node-id=\"grp_pid\"],\n  [id*=\"P&ID\"], [id*=\"P_ID\"], [id*=\"pid\"] {\n    flex: 1 1 0 !important;\n    min-width: 480px !important;\n    width: auto !important;\n  }\n\n  /* Card 2: Control Desk (responsive fixed-range width) */\n  ui-card-panel[node-id=\"grp_controls\"],\n  [id*=\"Operator_Control_Desk\"], [id*=\"controls\"] {\n    flex: 0 0 clamp(320px, 28vw, 400px) !important;\n    width: clamp(320px, 28vw, 400px) !important;\n    min-width: 320px !important;\n    max-width: 400px !important;\n  }\n\n  /* Card Panel dark navy container (#111827) */\n  .nr-dashboard-cardpanel {\n    height: 100% !important;\n    max-height: 100% !important;\n    width: 100% !important;\n    display: flex !important;\n    flex-direction: column !important;\n    box-sizing: border-box !important;\n    background: #111827 !important;\n    border: 1px solid #1f2937 !important;\n    border-radius: 8px !important;\n    box-shadow: 0 4px 14px rgba(0,0,0,0.4) !important;\n    padding: 12px 14px !important;\n  }\n\n  /* Headings: keep existing blue color */\n  .nr-dashboard-cardtitle {\n    width: 100% !important;\n    margin: 0 0 10px 0 !important;\n    min-height: 28px !important;\n    max-height: 28px !important;\n    color: #0094ce !important;\n    font-size: 18px !important;\n    font-weight: 600 !important;\n  }\n\n  /* Inside Card 1: P&ID container */\n  ui-card-panel[node-id=\"grp_pid\"] .nr-dashboard-cardcontainer {\n    flex: 1 1 auto !important;\n    width: 100% !important;\n    height: calc(100% - 38px) !important;\n    max-height: calc(100% - 38px) !important;\n    position: static !important;\n    display: flex !important;\n    flex-direction: column !important;\n    background: transparent !important;\n  }\n\n  ui-card-panel[node-id=\"grp_pid\"] .nr-dashboard-cardcontainer > .nr-dashboard-template {\n    flex: 1 1 auto !important;\n    width: 100% !important;\n    height: 100% !important;\n    max-height: 100% !important;\n    position: static !important;\n    display: flex !important;\n    flex-direction: column !important;\n    background: transparent !important;\n    box-shadow: none !important;\n    padding: 0 !important;\n  }\n\n  .scada-panel {\n    background: #0f172a !important;\n    color: #f8fafc !important;\n    font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif !important;\n    border-radius: 10px !important;\n    padding: 16px 20px !important;\n    box-shadow: 0 4px 14px rgba(0,0,0,0.3) !important;\n    border: 1px solid #1e293b !important;\n    flex: 1 1 auto !important;\n    height: 100% !important;\n    max-height: 100% !important;\n    width: 100% !important;\n    display: flex !important;\n    flex-direction: column !important;\n    justify-content: space-between !important;\n    box-sizing: border-box !important;\n  }\n\n  .scada-schematic {\n    flex: 1 1 auto !important;\n    display: flex !important;\n    align-items: center !important;\n    justify-content: space-between !important;\n    padding: 12px 14px 20px 14px !important;\n  }\n\n  .scada-box {\n    background: #1e293b !important;\n    border: 1px solid #334155 !important;\n    border-radius: 8px !important;\n    padding: 8px !important;\n  }\n\n  @keyframes spin-cw {\n    from { transform: rotate(0deg); }\n    to { transform: rotate(360deg); }\n  }\n  .pump-running { animation: spin-cw 1.8s linear infinite; transform-origin: 50% 50%; color: #06b6d4; }\n  .pump-stopped { color: #64748b; }\n  .pump-fault { color: #ef4444; animation: pulse 1s infinite; }\n  .pipe-running { background: linear-gradient(90deg, #06b6d4, #3b82f6, #06b6d4); background-size: 200% 100%; animation: flow-anim 1.5s linear infinite; }\n  @keyframes flow-anim { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }\n  .pipe-stopped { background: #334155; }\n\n  /* Inside Card 2: Operator Control Desk container */\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-cardcontainer {\n    flex: 0 0 auto !important;\n    width: 100% !important;\n    height: auto !important;\n    position: static !important;\n    display: grid !important;\n    grid-template-columns: repeat(3, 1fr) !important;\n    grid-gap: 12px !important;\n    box-sizing: border-box !important;\n    background: transparent !important;\n  }\n\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-cardcontainer > * {\n    position: static !important;\n    width: 100% !important;\n    margin: 0 !important;\n    box-sizing: border-box !important;\n    box-shadow: none !important;\n  }\n\n  /* Button 1: START */\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-cardcontainer > *:nth-child(1),\n  [node-id=\"btn_start\"] {\n    grid-column: 1 / 2 !important;\n    grid-row: 1 !important;\n  }\n\n  /* Button 2: STOP */\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-cardcontainer > *:nth-child(2),\n  [node-id=\"btn_stop\"] {\n    grid-column: 2 / 3 !important;\n    grid-row: 1 !important;\n  }\n\n  /* Button 3: RESET FAULT */\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-cardcontainer > *:nth-child(3),\n  [node-id=\"btn_reset\"] {\n    grid-column: 3 / 4 !important;\n    grid-row: 1 !important;\n  }\n\n  /* Button 4: DRAIN TANK */\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-cardcontainer > *:nth-child(4),\n  [node-id=\"btn_drain\"] {\n    grid-column: 1 / 4 !important;\n    grid-row: 2 !important;\n  }\n\n  /* Control 5: Target Speed */\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-cardcontainer > *:nth-child(5),\n  [node-id=\"num_rpm\"] {\n    grid-column: 1 / 4 !important;\n    grid-row: 3 !important;\n  }\n\n  /* Control 6: Inject Fault */\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-cardcontainer > *:nth-child(6),\n  [node-id=\"drp_fault\"] {\n    grid-column: 1 / 4 !important;\n    grid-row: 4 !important;\n  }\n\n  /* Buttons styling */\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-button {\n    height: 48px !important;\n    min-height: 48px !important;\n    background: transparent !important;\n  }\n\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-button md-button {\n    color: #ffffff !important;\n    font-weight: 700 !important;\n    letter-spacing: 0.5px !important;\n    border-radius: 6px !important;\n    box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;\n  }\n\n  /* Controls 5 & 6 Dark Industrial Styling */\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-numeric,\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-dropdown {\n    height: 48px !important;\n    min-height: 48px !important;\n    background: #1e293b !important;\n    border: 1px solid #334155 !important;\n    border-radius: 6px !important;\n    box-shadow: 0 2px 6px rgba(0,0,0,0.2) !important;\n  }\n\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-numeric p.label,\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-dropdown p.label {\n    color: #e2e8f0 !important;\n    font-size: 13px !important;\n    font-weight: 500 !important;\n  }\n\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-numeric .value {\n    color: #38bdf8 !important;\n    font-size: 15px !important;\n    font-weight: 700 !important;\n    background: transparent !important;\n  }\n\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-numeric md-button,\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-numeric ng-md-icon {\n    color: #94a3b8 !important;\n    fill: #94a3b8 !important;\n  }\n\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-dropdown md-select-value {\n    color: #f1f5f9 !important;\n    font-size: 13px !important;\n    border-bottom-color: #475569 !important;\n  }\n\n  ui-card-panel[node-id=\"grp_controls\"] .nr-dashboard-dropdown md-select-value .md-select-icon {\n    color: #94a3b8 !important;\n  }\n\n  /* Dropdown panel popup styling */\n  md-select-menu md-content {\n    background: #1e293b !important;\n    border: 1px solid #334155 !important;\n  }\n\n  md-option {\n    color: #f1f5f9 !important;\n  }\n\n  md-option[selected] {\n    color: #38bdf8 !important;\n    background: #0f172a !important;\n  }\n\n  /* Responsive Fallback for smaller screens */\n  @media (max-width: 900px) {\n    div[ui-masonry], #Tab_Water_Pump_Station {\n      flex-direction: column !important;\n      overflow-y: auto !important;\n    }\n    ui-card-panel[node-id=\"grp_pid\"] {\n      min-width: 100% !important;\n      width: 100% !important;\n      min-height: 450px !important;\n    }\n    ui-card-panel[node-id=\"grp_controls\"] {\n      min-width: 100% !important;\n      width: 100% !important;\n      max-width: 100% !important;\n    }\n  }\n</style>\n\n<div class=\"scada-panel\">\n  <!-- Header Status Bar -->\n  <div style=\"display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:10px; margin-bottom:14px; flex:0 0 auto;\">\n    <div style=\"display:flex; align-items:center; gap:8px;\">\n      <div style=\"width:10px; height:10px; border-radius:50%; background:#10b981; box-shadow:0 0 8px #10b981;\"></div>\n      <span style=\"font-size:13px; font-weight:700; letter-spacing:0.5px; color:#ffffff;\">PUMP STATION ALPHA &bull; UNIT-01</span>\n      <span style=\"font-size:10px; font-family:monospace; background:#082f49; color:#38bdf8; border:1px solid #0369a1; padding:2px 6px; border-radius:4px;\">MODBUS TCP :5020</span>\n    </div>\n    <div style=\"display:flex; gap:8px;\">\n      <span style=\"font-size:11px; font-family:monospace; padding:3px 8px; border-radius:4px; font-weight:700; border:1px solid #334155;\" ng-style=\"msg.payload.state === 'RUNNING' ? {'background':'#064e3b','color':'#34d399','border-color':'#059669'} : (msg.payload.state === 'FAULT' ? {'background':'#4c0519','color':'#fb7185','border-color':'#e11d48'} : {'background':'#1e293b','color':'#94a3b8'})\">\n        STATE: {{msg.payload.state || 'STOPPED'}}\n      </span>\n      <span style=\"font-size:11px; font-family:monospace; padding:3px 8px; border-radius:4px; font-weight:700; border:1px solid #334155;\" ng-style=\"msg.payload.interlock_tripped ? {'background':'#4c0519','color':'#fb7185','border-color':'#e11d48'} : {'background':'#064e3b','color':'#34d399','border-color':'#059669'}\">\n        SECURITY: {{msg.payload.interlock_text || 'INTERLOCKS OK'}}\n      </span>\n    </div>\n  </div>\n\n  <!-- Live Process Schematic Diagram -->\n  <div class=\"scada-schematic\">\n    <!-- Centrifugal Pump Unit -->\n    <div style=\"display:flex; flex-direction:column; align-items:center; width:130px;\">\n      <div style=\"width:84px; height:84px; border-radius:50%; border:3px solid #0ea5e9; background:#0b1329; display:flex; align-items:center; justify-content:center; box-shadow:0 0 16px rgba(14,165,233,0.3); position:relative;\">\n        <svg style=\"width:48px; height:48px;\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" ng-class=\"msg.payload.state === 'RUNNING' ? 'pump-running' : (msg.payload.state === 'FAULT' ? 'pump-fault' : 'pump-stopped')\">\n          <circle cx=\"12\" cy=\"12\" r=\"3\" stroke-width=\"2\"/>\n          <path stroke-linecap=\"round\" stroke-width=\"2\" d=\"M12 2v4m0 12v4M2 12h4m12 0h4m-3.5-6.5l-2.8 2.8m-7.4 7.4l-2.8 2.8m13 0l-2.8-2.8m-7.4-7.4L3.5 5.5\"/>\n        </svg>\n        <span style=\"position:absolute; bottom:4px; font-size:9px; font-family:monospace; font-weight:700; color:#38bdf8;\">{{msg.payload.rpm || 0}} RPM</span>\n      </div>\n      <span style=\"font-size:12px; font-weight:700; margin-top:6px; color:#e2e8f0;\">PUMP P-101</span>\n      <span style=\"font-size:10px; font-family:monospace;\" ng-style=\"msg.payload.state === 'RUNNING' ? {'color':'#34d399'} : (msg.payload.state === 'FAULT' ? {'color':'#f87171'} : {'color':'#94a3b8'})\">{{msg.payload.state || 'STOPPED'}}</span>\n    </div>\n\n    <!-- Pipeline with Flow, Pressure, Temp -->\n    <div style=\"flex:1; display:flex; flex-direction:column; align-items:center; padding:0 14px;\">\n      <div style=\"display:flex; gap:10px; margin-bottom:8px;\">\n        <span style=\"background:#1e293b; border:1px solid #475569; padding:3px 8px; border-radius:4px; font-family:monospace; font-size:11px; color:#f59e0b;\">\n          PRESS: <strong style=\"color:#ffffff;\">{{msg.payload.pressure || 0}} bar</strong>\n        </span>\n        <span style=\"background:#1e293b; border:1px solid #475569; padding:3px 8px; border-radius:4px; font-family:monospace; font-size:11px; color:#38bdf8;\">\n          TEMP: <strong style=\"color:#ffffff;\">{{msg.payload.temp || 30}} \u00b0C</strong>\n        </span>\n      </div>\n      <div style=\"width:100%; height:12px; border-radius:6px; border:1px solid #475569; position:relative; overflow:hidden;\" ng-class=\"msg.payload.state === 'RUNNING' ? 'pipe-running' : 'pipe-stopped'\"></div>\n      <span style=\"font-size:9px; font-family:monospace; color:#64748b; margin-top:4px;\">Discharge Line DN-80 &bull; Flow: {{msg.payload.water_flow || 0}} m\u00b3/h</span>\n    </div>\n\n    <!-- Reservoir Tank with Animated Water Level -->\n    <div style=\"display:flex; flex-direction:column; align-items:center; width:130px;\">\n      <div style=\"width:84px; height:110px; border:2px solid #64748b; border-radius:6px; background:#0b1329; position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-end; padding:2px;\">\n        <!-- Scale lines -->\n        <div style=\"position:absolute; left:2px; top:4px; bottom:4px; display:flex; flex-direction:column; justify-content:space-between; font-size:7px; font-family:monospace; color:#475569; pointer-events:none; z-index:10;\">\n          <span>100</span><span>75</span><span>50</span><span>25</span><span>0</span>\n        </div>\n        <!-- Water Column -->\n        <div style=\"width:100%; background:linear-gradient(to top, #1d4ed8, #06b6d4); border-radius:0 0 4px 4px; transition:height 0.8s ease;\" ng-style=\"{'height': (msg.payload.tank_level || 0) + '%'}\"></div>\n        <!-- Center Percentage Label -->\n        <div style=\"position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:20;\">\n          <span style=\"font-size:15px; font-weight:900; font-family:monospace; color:#ffffff; text-shadow:0 2px 4px rgba(0,0,0,0.9);\">{{msg.payload.tank_level || 0}}%</span>\n        </div>\n      </div>\n      <span style=\"font-size:12px; font-weight:700; margin-top:6px; color:#e2e8f0;\">RESERVOIR T-201</span>\n      <span style=\"font-size:10px; font-family:monospace; color:#38bdf8;\">Cap: 100.0 m\u00b3</span>\n    </div>\n  </div>\n\n  <!-- Live Telemetry KPI Metrics Strip -->\n  <div style=\"display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; border-top:1px solid #334155; padding-top:10px; flex:0 0 auto;\">\n    <div class=\"scada-box\" style=\"text-align:center;\">\n      <span style=\"font-size:9px; color:#94a3b8; text-transform:uppercase; display:block;\">Speed Setpoint</span>\n      <span style=\"font-size:13px; font-weight:700; font-family:monospace; color:#38bdf8;\">{{msg.payload.rpm || 0}} RPM</span>\n    </div>\n    <div class=\"scada-box\" style=\"text-align:center;\">\n      <span style=\"font-size:9px; color:#94a3b8; text-transform:uppercase; display:block;\">Water Flow</span>\n      <span style=\"font-size:13px; font-weight:700; font-family:monospace; color:#60a5fa;\">{{msg.payload.water_flow || 0}} m\u00b3/h</span>\n    </div>\n    <div class=\"scada-box\" style=\"text-align:center;\">\n      <span style=\"font-size:9px; color:#94a3b8; text-transform:uppercase; display:block;\">Discharge Press</span>\n      <span style=\"font-size:13px; font-weight:700; font-family:monospace; color:#fbbf24;\">{{msg.payload.pressure || 0}} bar</span>\n    </div>\n    <div class=\"scada-box\" style=\"text-align:center;\">\n      <span style=\"font-size:9px; color:#94a3b8; text-transform:uppercase; display:block;\">Motor Temp</span>\n      <span style=\"font-size:13px; font-weight:700; font-family:monospace;\" ng-style=\"msg.payload.temp > 80 ? {'color':'#f87171'} : {'color':'#34d399'}\">{{msg.payload.temp || 30}} \u00b0C</span>\n    </div>\n  </div>\n</div>\n",
+        "storeOutMessages": false,
+        "fwdInMessages": false,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 670,
+        "y": 140,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "ui_toast",
+        "type": "ui_toast",
+        "z": "tab1",
+        "position": "top right",
+        "displayTime": "3",
+        "highlight": "red",
+        "sendall": true,
+        "outputs": 0,
+        "ok": "OK",
+        "cancel": "",
+        "raw": false,
+        "topic": "PUMP FAULT",
+        "name": "Fault Popup",
+        "x": 650,
+        "y": 200,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "btn_start",
+        "type": "ui_button",
+        "z": "tab1",
+        "name": "START",
+        "group": "grp_controls",
+        "order": 1,
+        "width": 2,
+        "height": 1,
+        "passthru": false,
+        "label": "START",
+        "color": "",
+        "bgcolor": "green",
+        "payload": "1",
+        "payloadType": "num",
+        "topic": "",
+        "x": 120,
+        "y": 440,
+        "wires": [
+            [
+                "wr_cmd"
+            ]
+        ]
+    },
+    {
+        "id": "btn_stop",
+        "type": "ui_button",
+        "z": "tab1",
+        "name": "STOP",
+        "group": "grp_controls",
+        "order": 2,
+        "width": 2,
+        "height": 1,
+        "passthru": false,
+        "label": "STOP",
+        "color": "",
+        "bgcolor": "orange",
+        "payload": "2",
+        "payloadType": "num",
+        "topic": "",
+        "x": 120,
+        "y": 480,
+        "wires": [
+            [
+                "wr_cmd"
+            ]
+        ]
+    },
+    {
+        "id": "btn_reset",
+        "type": "ui_button",
+        "z": "tab1",
+        "name": "RESET FAULT",
+        "group": "grp_controls",
+        "order": 3,
+        "width": 2,
+        "height": 1,
+        "passthru": false,
+        "label": "RESET FAULT",
+        "color": "",
+        "bgcolor": "red",
+        "payload": "3",
+        "payloadType": "num",
+        "topic": "",
+        "x": 130,
+        "y": 520,
+        "wires": [
+            [
+                "wr_cmd"
+            ]
+        ]
+    },
+    {
+        "id": "btn_drain",
+        "type": "ui_button",
+        "z": "tab1",
+        "name": "DRAIN TANK",
+        "group": "grp_controls",
+        "order": 4,
+        "width": 6,
+        "height": 1,
+        "passthru": false,
+        "label": "DRAIN TANK",
+        "color": "",
+        "bgcolor": "#0094ce",
+        "payload": "4",
+        "payloadType": "num",
+        "topic": "",
+        "x": 130,
+        "y": 550,
+        "wires": [
+            [
+                "wr_cmd"
+            ]
+        ]
+    },
+    {
+        "id": "wr_cmd",
+        "type": "modbus-write",
+        "z": "tab1",
+        "name": "Write Command (HR 0)",
+        "showStatusActivities": false,
+        "showErrors": true,
+        "showWarnings": true,
+        "unitid": "1",
+        "dataType": "HoldingRegister",
+        "adr": "0",
+        "quantity": "1",
+        "server": "mb_client",
+        "emptyMsgOnFail": false,
+        "keepMsgProperties": false,
+        "x": 400,
+        "y": 480,
+        "wires": [
+            [],
+            []
+        ]
+    },
+    {
+        "id": "num_rpm",
+        "type": "ui_numeric",
+        "z": "tab1",
+        "name": "Speed Setpoint",
+        "label": "Target Speed (RPM)",
+        "tooltip": "",
+        "group": "grp_controls",
+        "order": 5,
+        "width": 0,
+        "height": 0,
+        "wrap": false,
+        "passthru": true,
+        "topic": "",
+        "format": "{{value}}",
+        "min": 0,
+        "max": 3000,
+        "step": 100,
+        "x": 140,
+        "y": 590,
+        "wires": [
+            [
+                "wr_rpm"
+            ]
+        ]
+    },
+    {
+        "id": "wr_rpm",
+        "type": "modbus-write",
+        "z": "tab1",
+        "name": "Write Speed (HR 1)",
+        "showStatusActivities": false,
+        "showErrors": true,
+        "showWarnings": true,
+        "unitid": "1",
+        "dataType": "HoldingRegister",
+        "adr": "1",
+        "quantity": "1",
+        "server": "mb_client",
+        "emptyMsgOnFail": false,
+        "keepMsgProperties": false,
+        "x": 400,
+        "y": 590,
+        "wires": [
+            [],
+            []
+        ]
+    },
+    {
+        "id": "drp_fault",
+        "type": "ui_dropdown",
+        "z": "tab1",
+        "name": "Fault Injection",
+        "label": "Inject Fault",
+        "tooltip": "",
+        "place": "Select Fault",
+        "group": "grp_controls",
+        "order": 6,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "options": [
+            {
+                "label": "0 - None (Clear)",
+                "value": 0,
+                "type": "num"
+            },
+            {
+                "label": "1 - Low Pressure Fault",
+                "value": 1,
+                "type": "num"
+            },
+            {
+                "label": "2 - High Temperature Fault",
+                "value": 2,
+                "type": "num"
+            }
+        ],
+        "payload": "",
+        "topic": "",
+        "x": 130,
+        "y": 640,
+        "wires": [
+            [
+                "wr_fault"
+            ]
+        ]
+    },
+    {
+        "id": "wr_fault",
+        "type": "modbus-write",
+        "z": "tab1",
+        "name": "Write Fault (HR 2)",
+        "showStatusActivities": false,
+        "showErrors": true,
+        "showWarnings": true,
+        "unitid": "1",
+        "dataType": "HoldingRegister",
+        "adr": "2",
+        "quantity": "1",
+        "server": "mb_client",
+        "emptyMsgOnFail": false,
+        "keepMsgProperties": false,
+        "x": 400,
+        "y": 640,
+        "wires": [
+            [],
+            []
+        ]
+    }
 ]

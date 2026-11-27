@@ -12,6 +12,7 @@ void pump_init(PumpSimulator *pump) {
     pump->motor_temp = 30.0f;
     pump->fault_code = FAULT_NONE;
     pump->fault_injection = 0;
+    pump->drain_active = 0;
     log_event("INFO", "Pump initialized in STOPPED state");
 }
 
@@ -29,6 +30,7 @@ void pump_process_command(PumpSimulator *pump, int command) {
     if (command == CMD_NONE) return;
 
     if (command == CMD_START) {
+        pump->drain_active = 0; // Close drain when starting pump
         if (pump->state == PUMP_STOPPED) {
             pump->state = PUMP_RUNNING;
             log_event("INFO", "START command received: Pump is RUNNING");
@@ -47,6 +49,9 @@ void pump_process_command(PumpSimulator *pump, int command) {
         } else {
             log_event("WARN", "Cannot reset fault: Fault condition is still active");
         }
+    } else if (command == CMD_DRAIN_TANK) {
+        pump->drain_active = 1;
+        log_event("INFO", "DRAIN command received: Opening discharge valve");
     } else {
         log_event("WARN", "Rejected unknown pump command");
     }
@@ -93,6 +98,16 @@ void pump_step(PumpSimulator *pump) {
     if (pump->water_flow > 0.0f) {
         pump->tank_level += (pump->water_flow / 36.0f);
         if (pump->tank_level > 100.0f) pump->tank_level = 100.0f;
+    }
+
+    // Drain tank smoothly at 5% per second when drain valve is open
+    if (pump->drain_active) {
+        pump->tank_level -= 5.0f;
+        if (pump->tank_level <= 0.0f) {
+            pump->tank_level = 0.0f;
+            pump->drain_active = 0;
+            log_event("INFO", "Tank empty: Discharge valve closed");
+        }
     }
 
     // 5. Motor heating while running and cooling when stopped (M16)

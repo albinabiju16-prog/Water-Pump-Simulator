@@ -20,7 +20,7 @@ void handle_sigint(int sig) {
 }
 
 // Copy pump values into Modbus registers (Section 1.3 scaling)
-static void update_registers(PumpSimulator *pump, modbus_mapping_t *map) {
+static void update_registers(const PumpSimulator *pump, modbus_mapping_t *map) {
     // Input Registers (Read-Only, 0 to 5)
     map->tab_input_registers[0] = (uint16_t)(pump->tank_level * 10.0f);         // Tank level x 10
     map->tab_input_registers[1] = (uint16_t)(pump->water_flow * 10.0f);         // Flow x 10
@@ -35,7 +35,7 @@ static void update_registers(PumpSimulator *pump, modbus_mapping_t *map) {
 }
 
 // Read commands written by Node-RED into Holding Registers (0 to 2)
-static void apply_holding_registers(PumpSimulator *pump, AppConfig *config, modbus_mapping_t *map) {
+static void apply_holding_registers(PumpSimulator *pump, const AppConfig *config, modbus_mapping_t *map) {
     // Holding Register 1: Requested motor speed in RPM
     int req_rpm = (int)map->tab_registers[1];
     if (req_rpm != pump->requested_rpm) {

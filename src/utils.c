@@ -22,7 +22,7 @@ int load_config(const char *filename, AppConfig *config) {
 
 void log_event(const char *level, const char *message) {
     time_t now = time(NULL);
-    struct tm *t = localtime(&now);
+    const struct tm *t = localtime(&now);
     char time_str[32];
     strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", t);
 
