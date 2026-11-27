@@ -93,6 +93,16 @@ int main() {
     assert(pump.state == PUMP_STOPPED);
     printf("PASS [28-32]: Fault detection, safety interlocks, and reset\n");
 
-    printf("\nALL 32 UNIT TESTS PASSED!\n");
+    // 33-35: Tank drain command and auto-close when empty
+    pump.tank_level = 10.0f;
+    pump_process_command(&pump, CMD_DRAIN_TANK);
+    assert(pump.drain_active == 1);
+    pump_step(&pump); // 10.0 -> 5.0%
+    assert(pump.tank_level == 5.0f);
+    pump_step(&pump); // 5.0 -> 0.0% and auto-closes
+    assert(pump.tank_level == 0.0f && pump.drain_active == 0);
+    printf("PASS [33-35]: Tank drain command and auto-close when empty\n");
+
+    printf("\nALL 35 UNIT TESTS PASSED!\n");
     return 0;
 }

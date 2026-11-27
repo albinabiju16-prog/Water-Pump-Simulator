@@ -14,7 +14,8 @@ typedef enum {
     CMD_NONE        = 0,
     CMD_START       = 1,
     CMD_STOP        = 2,
-    CMD_RESET_FAULT = 3
+    CMD_RESET_FAULT = 3,
+    CMD_DRAIN_TANK  = 4
 } PumpCommand;
 
 // Fault codes for Input Register 5
@@ -35,6 +36,7 @@ typedef struct {
     float motor_temp;           // Starts at 30 C (M08)
     FaultCode fault_code;       // 0, 1, or 2
     int fault_injection;        // 0 = None, 1 = Low pressure, 2 = High temp
+    int drain_active;           // 1 = Drain valve open, 0 = Closed
 } PumpSimulator;
 
 void pump_init(PumpSimulator *pump);
